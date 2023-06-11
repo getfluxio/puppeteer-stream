@@ -13,15 +13,14 @@ import dgram, { Socket } from "dgram";
 const extensionPath = path.join(__dirname, "..", "extension");
 const extensionId = "jjndjgheafjngoipoacpjgeicjeomjli";
 let currentIndex = 0;
-type StreamLaunchOptions = LaunchOptions &
-	BrowserLaunchArgumentOptions &
+type StreamLaunchOptions = BrowserLaunchArgumentOptions &
 	BrowserConnectOptions & {
 		allowIncognito?: boolean;
 	};
 
 export async function launch(
 	arg1: StreamLaunchOptions & { launch?: Function; [key: string]: any },
-	opts?: StreamLaunchOptions
+	opts?: StreamLaunchOptions & LaunchOptions
 ): Promise<Browser> {
 	//if puppeteer library is not passed as first argument, then first argument is options
 	if (typeof arg1.launch != "function") {
@@ -114,10 +113,10 @@ export interface getStreamOptions {
 	bitsPerSecond?: number;
 	frameSize?: number;
 	delay?: number;
-	retry? : {
-		each? : number,
-		times?: number
-	}
+	retry?: {
+		each?: number;
+		times?: number;
+	};
 }
 
 async function getExtensionPage(browser: Browser) {
@@ -139,7 +138,7 @@ export async function getStream(page: Page, opts: getStreamOptions) {
 		else if (opts.audio) opts.mimeType = "audio/webm";
 	}
 	if (!opts.frameSize) opts.frameSize = 20;
-	const retryPolicy = Object.assign({}, {each: 20, times: 3}, opts.retry)
+	const retryPolicy = Object.assign({}, { each: 20, times: 3 }, opts.retry);
 
 	const extension = await getExtensionPage(page.browser());
 	const index = currentIndex++;
@@ -150,7 +149,7 @@ export async function getStream(page: Page, opts: getStreamOptions) {
 	);
 
 	await page.bringToFront();
-	await assertExtensionLoaded(extension, retryPolicy)
+	await assertExtensionLoaded(extension, retryPolicy);
 	extension.evaluate(
 		// @ts-ignore
 		(settings) => START_RECORDING(settings),
@@ -160,14 +159,14 @@ export async function getStream(page: Page, opts: getStreamOptions) {
 	return stream;
 }
 
-async function assertExtensionLoaded( ext: Page, opt: getStreamOptions["retry"]){
-	const wait = (ms: number) => new Promise( res => setTimeout( res, ms))
-	for (let currentTick=0; currentTick< opt.times; currentTick++) {
+async function assertExtensionLoaded(ext: Page, opt: getStreamOptions["retry"]) {
+	const wait = (ms: number) => new Promise((res) => setTimeout(res, ms));
+	for (let currentTick = 0; currentTick < opt.times; currentTick++) {
 		// @ts-ignore
-		if(await ext.evaluate(() => typeof START_RECORDING === "function")) return;
+		if (await ext.evaluate(() => typeof START_RECORDING === "function")) return;
 		await wait(Math.pow(opt.each, currentTick));
 	}
-	throw new Error("Could not find START_RECORDING function in the browser context")
+	throw new Error("Could not find START_RECORDING function in the browser context");
 }
 
 export class UDPStream extends Readable {
